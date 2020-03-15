@@ -34,7 +34,7 @@ def run_command(command_queue):
     except queue.Empty:
         pass
     else:
-        automationhat.relay.one.on() if command == "unlock" else automationhat.relay.one.off()
+        automationhat.output.one.on() if command == "unlock" else automationhat.output.one.off()
 
 
 def read_doorbell(thread_local):
