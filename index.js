@@ -56,20 +56,20 @@ function IntercomPlatform(log, config, api) {
     
     pyshell.on('stderr', function (stderr) {
       // handle stderr (a line of text from stderr)
-        this.log("pyshell stderr:");
-        this.log("               " + stderr);
+        console.log("pyshell stderr:");
+        console.log("               " + stderr);
     });
     
     pyshell.on('close', function (stderr) {
       // handle stderr (a line of text from stderr)
-        this.log("pyshell close:");
-        this.log("               " + stderr);
+        console.log("pyshell close:");
+        console.log("               " + stderr);
     });
     
     pyshell.on('error', function (stderr) {
       // handle stderr (a line of text from stderr)
-        this.log("pyshell error:");
-        this.log("               " + stderr);
+        console.log("pyshell error:");
+        console.log("               " + stderr);
     });
     
     //this.pyshell.on('message', function (message) {
