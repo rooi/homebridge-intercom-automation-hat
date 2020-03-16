@@ -35,6 +35,14 @@ Install homebridge-webos-tv:
 sudo npm install -g homebridge-intercom-automation-hat
 ```
 
+When running this plugin using homebride-config-ui you need to set permission to access i2c and gpio:
+First install homebridge-config-ui-x according to their instructions. Then open a terminal and execute the following two commands and reboot afterwards:
+```
+sudo adduser homebridge i2c
+sudo adduser homebridge gpio
+```
+
+
 ## Configuration
 
 Add the accessory in `config.json` in your home directory inside `.homebridge`.
