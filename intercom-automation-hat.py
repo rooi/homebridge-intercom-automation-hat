@@ -30,7 +30,7 @@ def run_loop(command_queue):
 
 def run_command(command_queue):
     try:
-        command = command_queue.get(timeout=0.5)
+        command = command_queue.get(timeout=0.1)
     except queue.Empty:
         pass
     else:

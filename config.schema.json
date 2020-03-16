@@ -1,0 +1,21 @@
+{
+  "pluginAlias": "IntercomAutomationHAT",
+  "pluginType": "platform",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "Intercom",
+        "required": true
+      },
+      "lockTimeout": {
+        "title": "Lock Timeout",
+        "type": "string",
+        "default": "1000",
+        "required": false
+      }
+    }
+  }
+}
