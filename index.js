@@ -54,6 +54,24 @@ function IntercomPlatform(log, config, api) {
         scriptPath: scriptPath//'../../homebridge-intercom-automation-hat'
     });
     
+    pyshell.on('stderr', function (stderr) {
+      // handle stderr (a line of text from stderr)
+        this.log("pyshell stderr:");
+        this.log("               " + stderr);
+    });
+    
+    pyshell.on('close', function (stderr) {
+      // handle stderr (a line of text from stderr)
+        this.log("pyshell close:");
+        this.log("               " + stderr);
+    });
+    
+    pyshell.on('error', function (stderr) {
+      // handle stderr (a line of text from stderr)
+        this.log("pyshell error:");
+        this.log("               " + stderr);
+    });
+    
     //this.pyshell.on('message', function (message) {
     //  // received a message sent from the Python script (a simple "print" statement)
     //  console.log(message);
