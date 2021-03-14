@@ -16,7 +16,7 @@ by [HomeBridge](https://github.com/homebridge/homebridge).
 ## Installation
 
 If you are new to Homebridge, please first read the Homebridge [documentation](https://www.npmjs.com/package/homebridge).
-Specifically for running on a Raspberry, you will find a tutorial in the [homebridge-punt Wiki](https://github.com/cflurin/homebridge-punt/wiki/Running-Homebridge-on-a-Raspberry-Pi).
+Specifically for running on a Raspberry, you will find a tutorial in the [homebridge Wiki](https://github.com/homebridge/homebridge/wiki/Install-Homebridge-on-Raspbian).
 
 Assure you're using the most up-to-date version of Raspbian
 
@@ -30,7 +30,7 @@ Install homebridge:
 sudo npm install -g homebridge
 ```
 
-Install homebridge-webos-tv:
+Install homebridge-intercom-automation-hat:
 ```sh
 sudo npm install -g homebridge-intercom-automation-hat
 ```
