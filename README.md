@@ -55,7 +55,8 @@ Example configuration:
   [{
       "platform": "IntercomAutomationHAT",
       "name": "Intercom",
-      "lockTimeout": "1000"
+      "lockTimeout": "1000",
+      "voltageLowLimit": "0.03"
   }]
 }
 ```

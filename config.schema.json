@@ -15,6 +15,12 @@
         "type": "string",
         "default": "1000",
         "required": false
+      },
+      "voltageLowLimit": {
+        "title": "Voltage Low Limit",
+        "type": "string",
+        "default": "0.03",
+        "required": false
       }
     }
   }
