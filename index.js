@@ -29,6 +29,7 @@ function IntercomPlatform(log, config, api) {
     
     //device configuration
     this.lockTimeout = this.config['lockTimeout'] || 1000; // milliseconds - 1 sec
+    this.voltageLowLimit = this.config['voltageLowLimit'] || 0.03; // V
     this.name = this.config['name'] || 'Intercom';
 
     //setup variables
@@ -51,6 +52,7 @@ function IntercomPlatform(log, config, api) {
         mode: 'text',
         pythonPath: '/usr/bin/python3',
         pythonOptions: ['-u'], // get print results in real-time
+        args: [this.voltageLowLimit],
         scriptPath: scriptPath//'../../homebridge-intercom-automation-hat'
     });
     

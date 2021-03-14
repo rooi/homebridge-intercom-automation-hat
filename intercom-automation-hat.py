@@ -10,6 +10,7 @@ import threading
 import logging
 
 logging.basicConfig(level=logging.INFO)
+voltageLowLimit = float(sys.argv[1])
 
 def main():
     command_queue = queue.LifoQueue()
