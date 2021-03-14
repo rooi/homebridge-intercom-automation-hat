@@ -13,6 +13,12 @@ make a simple circuit-based door lock and door bell intercom into a
 Siri-controlled HomeKit smart accessory. Siri integration is provided
 by [HomeBridge](https://github.com/homebridge/homebridge).
 
+## Connecting wires to the automation phat
+* Connect the intercom's ground wire to the automation phat ground
+* Connect the intercom's door opener (high) to automation phat output one
+* Connect the intercom's doorbell wire (high) to automation phat analog one
+
+
 ## Installation
 
 If you are new to Homebridge, please first read the Homebridge [documentation](https://www.npmjs.com/package/homebridge).
