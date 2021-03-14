@@ -1,6 +1,6 @@
 {
   "name": "homebridge-intercom-automation-hat",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Homebridge plugin to expose an intercom's doorbell and opener through an Raspberry Pi and Pimoroni Automation (p)Hat",
   "main": "index.js",
   "engines": {
@@ -14,6 +14,11 @@
     "homebridge",
     "homekit"
   ],
+  "author": "rooi",
+  "funding": {
+    "type" : "paypal",
+    "url" : "https://paypal.me/rooirooi"
+  },
   "license": "MIT",
   "dependencies": {
     "python-shell": "^1.0.8"

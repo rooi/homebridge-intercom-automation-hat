@@ -7,6 +7,10 @@ import sys
 import queue
 import threading
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 def main():
     command_queue = queue.LifoQueue()
     read_thread = threading.Thread(target=read_loop, args=[command_queue])
@@ -42,7 +46,7 @@ def read_doorbell(thread_local):
     doorbell_on_state = abs(analog_value) > 0.03
 
     if doorbell_on_state:
-        print("doorbell analog value: {}; ringing: {}; voltage > 1: ".format(analog_value, doorbell_on_state))
+        logging.info("doorbell analog value: {}; ringing: {}; voltage > 1: ".format(analog_value, doorbell_on_state))
 
     if doorbell_on_state != thread_local.doorbell_on_state:
         thread_local.doorbell_on_state = doorbell_on_state
