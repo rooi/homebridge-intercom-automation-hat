@@ -1,4 +1,8 @@
 # homebridge-intercom-automation-hat
+
+[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
+[![homebridge-intercom-automation-hat](https://badgen.net/npm/v/homebridge-intercom-automation-hat?icon=npm)](https://www.npmjs.com/package/homebridge-intercom-automation-hat)
+
 Homebridge plugin to expose an intercom's doorbell and opener through an Raspberry Pi and Pimoroni Automation (p)Hat
 
 Adapted from / credits to:  Luke Hoersten
