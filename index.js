@@ -110,8 +110,9 @@ IntercomPlatform.prototype = {
                 break;
             case 'doorbell off':
                 if(this.bellRang) {
+                    var that = this;
                     setTimeout(function() {
-                        this.bellRang = false;
+                        that.bellRang = false;
                         doorbellOffCallback();
                     }, this.bellTimeout);
                 }
