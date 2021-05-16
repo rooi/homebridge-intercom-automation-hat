@@ -105,11 +105,11 @@ IntercomPlatform.prototype = {
             this.log(message);
             switch(message) {
             case 'doorbell on':
-                if(!bellRang) doorbellOnCallback();
+                if(!this.bellRang) doorbellOnCallback();
                 this.bellRang = true;
                 break;
             case 'doorbell off':
-                if(bellRang) {
+                if(this.bellRang) {
                     setTimeout(function() {
                         this.bellRang = false;
                         doorbellOffCallback();
