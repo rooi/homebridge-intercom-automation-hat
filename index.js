@@ -28,6 +28,7 @@ function IntercomPlatform(log, config, api) {
     this.log("IntercomPlatform constructor");
     
     //device configuration
+    this.bellTimeout = this.config['bellTimeout'] || 1000; // milliseconds - 1 sec
     this.lockTimeout = this.config['lockTimeout'] || 1000; // milliseconds - 1 sec
     this.voltageLowLimit = this.config['voltageLowLimit'] || 0.03; // V
     this.name = this.config['name'] || 'Intercom';
@@ -40,6 +41,8 @@ function IntercomPlatform(log, config, api) {
     this.modelName = 'Zero W';
     this.serialNumber = 'SN000001';
     this.firmwareRevision = 'FW000001';
+    
+    this.bellRang = false;
 
     // Prepare to kill pyshell
     process.on('SIGINT', () => { this.shutdown('SIGINT') })
@@ -99,16 +102,22 @@ IntercomPlatform.prototype = {
     
     listenDoorbell: function(doorbellOnCallback, doorbellOffCallback) {
         pyshell.on('message', function (message) {
-            console.log(message);
+            this.log(message);
             switch(message) {
             case 'doorbell on':
-                doorbellOnCallback();
+                if(!bellRang) doorbellOnCallback();
+                this.bellRang = true;
                 break;
             case 'doorbell off':
-                doorbellOffCallback();
+                if(bellRang) {
+                    setTimeout(function() {
+                        this.bellRang = false;
+                        doorbellOffCallback();
+                    }, this.bellTimeout);
+                }
                 break;
             }
-        });
+        }.bind(this));
     },
 
     accessories: function(callback) {

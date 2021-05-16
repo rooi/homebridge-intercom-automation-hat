@@ -10,6 +10,12 @@
         "default": "Intercom",
         "required": true
       },
+      "bellTimeout": {
+        "title": "Bell Timeout",
+        "type": "string",
+        "default": "1000",
+        "required": false
+      },
       "lockTimeout": {
         "title": "Lock Timeout",
         "type": "string",
