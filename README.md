@@ -3,16 +3,23 @@
 [![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
 [![homebridge-intercom-automation-hat](https://badgen.net/npm/v/homebridge-intercom-automation-hat?icon=npm)](https://www.npmjs.com/package/homebridge-intercom-automation-hat)
 
-Homebridge plugin to expose an intercom's doorbell and opener through an Raspberry Pi and Pimoroni Automation (p)Hat
+Homebridge plugin for controlling an intercom lock and doorbell using a Pimoroni Automation HAT / Automation HAT Mini and Raspberry Pi GPIO.
+
+Features:
+- Doorbell detection using analog input
+- Lock control using relay output
+- Support for Automation HAT and Automation HAT Mini
+- Configurable Python virtual environment support
+- Compatible with Raspberry Pi Zero 2
 
 Adapted from / credits to:  Luke Hoersten
 https://github.com/lukehoersten/homekit-door
 https://medium.com/dirigible/siri-controlled-1970s-intercom-door-ecd7a6b0df31
 
-Using
-a
+Using a
 [Raspberry Pi Zero W](https://www.raspberrypi.org/products/raspberry-pi-zero-w/) and
-[Pimoroni Automation pHAT](https://shop.pimoroni.com/products/automation-phat),
+[Pimoroni Automation pHAT](https://shop.pimoroni.com/products/automation-phat) or 
+[Pimoroni Automation HAT Mini](https://shop.pimoroni.com/products/automation-hat-mini),
 make a simple circuit-based door lock and door bell intercom into a
 Siri-controlled HomeKit smart accessory. Siri integration is provided
 by [HomeBridge](https://github.com/homebridge/homebridge).
@@ -30,17 +37,45 @@ Specifically for running on a Raspberry, you will find a tutorial in the [homebr
 
 Assure you're using the most up-to-date version of Raspbian
 
-Install Pimoroni automation (p)hat:
+1. Install Homebridge
+Install Homebridge using the official [instructions](https://homebridge.io/)
+
+2. Install system dependencies
 ```sh
-curl https://get.pimoroni.com/automationhat | bash
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv
 ```
 
-Install homebridge:
+3. Create Python virtual environment
+A Python virtual environment is recommended to avoid package conflicts on modern Raspberry Pi OS versions.
 ```sh
-sudo npm install -g homebridge
+mkdir -p /home/pi/venvs
+
+python3 -m venv /home/pi/venvs/automationhat
+```
+Activate the virtual environment:
+```sh
+source /home/pi/venvs/automationhat/bin/activate
+```
+Upgrade pip:
+```sh
+pip install --upgrade pip
+```
+Install Automation HAT Python library:
+```sh
+pip install automationhat
+```
+Test installation:
+```sh
+python -c "import automationhat; print('automationhat OK')"
+```
+Deactivate the virtual environment:
+```sh
+deactivate
 ```
 
-Install homebridge-intercom-automation-hat:
+4. Install plugin
+Install using Homebridge UI or manually:
 ```sh
 sudo npm install -g homebridge-intercom-automation-hat
 ```
@@ -67,7 +102,8 @@ Example configuration:
       "name": "Intercom",
       "bellTimeout": "1000",
       "lockTimeout": "1000",
-      "voltageLowLimit": "0.03"
+      "voltageLowLimit": "0.25",
+      "pythonPath": "/home/pi/venvs/automationhat/bin/python",
   }]
 }
 ```

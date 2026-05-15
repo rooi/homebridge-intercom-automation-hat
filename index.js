@@ -31,6 +31,8 @@ function IntercomPlatform(log, config, api) {
     this.bellTimeout = this.config['bellTimeout'] || 1000; // milliseconds - 1 sec
     this.lockTimeout = this.config['lockTimeout'] || 1000; // milliseconds - 1 sec
     this.voltageLowLimit = this.config['voltageLowLimit'] || 0.03; // V
+    this.pythonPath = this.config['pythonPath'] || '/home/pi/venvs/automationhat/bin/python'; // /usr/bin/python3
+
     this.name = this.config['name'] || 'Intercom';
 
     //setup variables
@@ -53,11 +55,20 @@ function IntercomPlatform(log, config, api) {
     // Create pyshell
     pyshell = new PythonShell('intercom-automation-hat.py', {
         mode: 'text',
-        pythonPath: '/usr/bin/python3',
+        pythonPath: '/home/pi/venvs/automationhat/bin/python',
         pythonOptions: ['-u'], // get print results in real-time
         args: [this.voltageLowLimit],
         scriptPath: scriptPath//'../../homebridge-intercom-automation-hat'
     });
+
+    pyshell = new PythonShell('intercom-automation-hat.py', {
+        mode: 'text',
+        pythonPath: this.pythonPath,
+        pythonOptions: ['-u'], // get print results in real-time
+        args: [this.voltageLowLimit],
+        scriptPath: scriptPath//'../../homebridge-intercom-automation-hat'
+});
+
     
     pyshell.on('stderr', function (stderr) {
       // handle stderr (a line of text from stderr)

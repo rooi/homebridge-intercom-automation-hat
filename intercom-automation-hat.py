@@ -44,20 +44,24 @@ def run_command(command_queue):
 
 
 def read_doorbell(thread_local):
-    analog_value = automationhat.analog.one.read()
-    
-    thread_local.moving_average_voltage = (abs(thread_local.moving_average_voltage) + abs(analog_value)) / 2.0
 
-    doorbell_on_state = abs(analog_value) > voltageLowLimit or abs(thread_local.moving_average_voltage) > voltageLowLimit
+    samples = []
+
+    for i in range(20):
+        analog_value = automationhat.analog.one.read()
+        samples.append(abs(analog_value))
+        time.sleep(0.01)
+
+    level = sum(samples) / len(samples)
+
+    doorbell_on_state = level > voltageLowLimit
 
     if doorbell_on_state:
-        logging.info("doorbell analog value: {:.2f} OR moving_average {:.2f} > {:.2f}".format(analog_value, thread_local.moving_average_voltage, voltageLowLimit))
-
-
-
+        logging.info("doorbell AC level: {:.2f} > {:.2f}".format(level, voltageLowLimit))
 
     if doorbell_on_state != thread_local.doorbell_on_state:
         thread_local.doorbell_on_state = doorbell_on_state
+
         print("doorbell on") if doorbell_on_state else print("doorbell off")
 
 
