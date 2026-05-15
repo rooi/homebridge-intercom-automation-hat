@@ -172,7 +172,7 @@ class IntercomLockAccessory {
     prepareLockAccessory() {
         this.log('prepareLockAccessory');
         let uuid = UUIDGen.generate(this.name + "LockAccessory");
-        this.intercomLockAccessory = new PlatformAccessory(this.name, uuid, Accessory.Categories.LOCK);
+        this.intercomLockAccessory = new PlatformAccessory(this.name, uuid, hap.Categories.LOCK);
         
         this.intercomLockAccessory.on('identify', function(callback){
             this.identify.call(this,callback);
@@ -257,7 +257,7 @@ class IntercomDoorbellAccessory {
     prepareDoorbellAccessory() {
         this.log('prepareBellAccessory');
         let uuid = UUIDGen.generate(this.name + "BellAccessory");
-        this.intercomDoorbellAccessory = new PlatformAccessory(this.name, uuid, Accessory.Categories.VIDEO_DOORBELL);
+        this.intercomDoorbellAccessory = new PlatformAccessory(this.name, uuid, hap.Categories.VIDEO_DOORBELL);
         
         this.intercomDoorbellAccessory.on('identify', function(callback){
             this.identify.call(this,callback);
