@@ -39,6 +39,9 @@ function IntercomPlatform(log, config, api) {
 
   this.accessories = new Map();
 
+  this.homeKitDoorbellService = null;
+  this.matterBellSensorUuid = null;
+
   this.matterAvailable = this.api.isMatterAvailable ? this.api.isMatterAvailable() : !!this.api.matter;
   this.matterEnabled = this.api.isMatterEnabled ? this.api.isMatterEnabled() : !!this.api.matter;
   this.enableMatter = this.config['enableMatter'] || false;
@@ -67,7 +70,9 @@ function IntercomPlatform(log, config, api) {
 
   this.api.on('didFinishLaunching', () => {
     this.log('didFinishLaunching');
+
     this.discoverDevices();
+    this.configureDoorbellEventHandling();
 
     if (this.enableMatter) {
       this.setupMatterDevices().catch((error) => {
@@ -77,7 +82,7 @@ function IntercomPlatform(log, config, api) {
   });
 
   this.api.on('shutdown', () => {
-    this.shutdown('shutdown');
+    this.shutdown('SIGTERM');
   });
 }
 
@@ -192,12 +197,42 @@ IntercomPlatform.prototype = {
       doorbellService = accessory.addService(Service.Doorbell, doorbellName, 'Doorbell');
     }
 
+    this.homeKitDoorbellService = doorbellService;
+  },
+
+  configureDoorbellEventHandling: function() {
     this.device.removeAllListeners('doorbell');
 
     this.device.on('doorbell', () => {
-      doorbellService
-        .getCharacteristic(Characteristic.ProgrammableSwitchEvent)
-        .updateValue(Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+      if (this.homeKitDoorbellService) {
+        this.homeKitDoorbellService
+          .getCharacteristic(Characteristic.ProgrammableSwitchEvent)
+          .updateValue(Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+      }
+
+      if (this.matterBellSensorUuid && this.api.matter) {
+        this.log('Matter bell sensor active');
+
+        this.api.matter.updateAccessoryState(
+          this.matterBellSensorUuid,
+          this.api.matter.clusterNames.BooleanState || 'booleanState',
+          { stateValue: true }
+        ).catch((error) => {
+          this.log.error('Failed to update Matter bell sensor active state:', error);
+        });
+
+        setTimeout(() => {
+          this.log('Matter bell sensor inactive');
+
+          this.api.matter.updateAccessoryState(
+            this.matterBellSensorUuid,
+            this.api.matter.clusterNames.BooleanState || 'booleanState',
+            { stateValue: false }
+          ).catch((error) => {
+            this.log.error('Failed to update Matter bell sensor inactive state:', error);
+          });
+        }, this.bellTimeout);
+      }
     });
   },
 
@@ -210,65 +245,94 @@ IntercomPlatform.prototype = {
     const matterLockName = this.name + " Matter Lock";
     const matterLockUuid = UUIDGen.generate(this.name + "MatterLock");
 
+    const matterBellSensorName = this.name + " Matter Bell Sensor";
+    const matterBellSensorUuid = UUIDGen.generate(this.name + "MatterBellSensor");
+
+    this.matterBellSensorUuid = matterBellSensorUuid;
+
     this.log('Registering Matter lock:', matterLockName);
+    this.log('Registering Matter bell contact sensor:', matterBellSensorName);
 
     await this.api.matter.registerPlatformAccessories(
       PLUGIN_NAME,
       PLATFORM_NAME,
-      [{
-        UUID: matterLockUuid,
-        displayName: matterLockName,
-        deviceType: this.api.matter.deviceTypes.DoorLock,
-        manufacturer: this.manufacturer,
-        model: this.modelName,
-        serialNumber: this.serialNumber + '-MATTER-LOCK',
-        firmwareRevision: this.firmwareRevision,
-        clusters: {
-          doorLock: {
-            lockState: 1
-          }
-        },
-        handlers: {
-          doorLock: {
-            lockDoor: async () => {
-              this.log('Matter lockDoor command received');
-              this.device.lock();
+      [
+        {
+          UUID: matterLockUuid,
+          displayName: matterLockName,
+          deviceType: this.api.matter.deviceTypes.DoorLock,
+          manufacturer: this.manufacturer,
+          model: this.modelName,
+          serialNumber: this.serialNumber + '-MATTER-LOCK',
+          firmwareRevision: this.firmwareRevision,
+          clusters: {
+            doorLock: {
+              lockState: 1
+            }
+          },
+          handlers: {
+            doorLock: {
+              lockDoor: async () => {
+                this.log('Matter lockDoor command received');
 
-              return {
-                lockState: 1
-              };
-            },
-
-            unlockDoor: async () => {
-              this.log('Matter unlockDoor command received');
-              this.device.unlock();
-
-              setTimeout(() => {
-                this.log('Matter unlock timeout door');
                 this.device.lock();
 
-                this.api.matter.updateAccessoryState(
-                  matterLockUuid,
-                  this.api.matter.clusterNames.DoorLock,
-                  { lockState: 1 }
-                ).catch((error) => {
-                  this.log.error('Failed to update Matter lock state after timeout:', error);
-                });
-              }, this.lockTimeout);
+                return {
+                  lockState: 1
+                };
+              },
 
-              return {
-                lockState: 2
-              };
+              unlockDoor: async () => {
+                this.log('Matter unlockDoor command received');
+
+                this.device.unlock();
+
+                setTimeout(() => {
+                  this.log('Matter unlock timeout door');
+
+                  this.device.lock();
+
+                  this.api.matter.updateAccessoryState(
+                    matterLockUuid,
+                    this.api.matter.clusterNames.DoorLock,
+                    { lockState: 1 }
+                  ).catch((error) => {
+                    this.log.error('Failed to update Matter lock state after timeout:', error);
+                  });
+                }, this.lockTimeout);
+
+                return {
+                  lockState: 2
+                };
+              }
             }
+          },
+          context: {
+            type: 'lock'
           }
         },
-        context: {
-          type: 'lock'
+        {
+          UUID: matterBellSensorUuid,
+          displayName: matterBellSensorName,
+          deviceType: this.api.matter.deviceTypes.ContactSensor,
+          manufacturer: this.manufacturer,
+          model: this.modelName,
+          serialNumber: this.serialNumber + '-MATTER-BELL',
+          firmwareRevision: this.firmwareRevision,
+          clusters: {
+            booleanState: {
+              stateValue: false
+            }
+          },
+          context: {
+            type: 'bell-sensor'
+          }
         }
-      }]
+      ]
     );
 
     this.log('Matter lock registered');
+    this.log('Matter bell contact sensor registered');
   },
 
   setDoorTargetState: function(lockService, state, callback) {

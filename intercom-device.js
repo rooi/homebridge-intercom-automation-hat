@@ -89,10 +89,12 @@ class IntercomDevice extends EventEmitter {
   }
 
   shutdown(signal) {
-    this.log('Got %s, shutting down intercom device', signal);
+    const killSignal = signal || 'SIGTERM';
+
+    this.log('Got ' + killSignal + ', shutting down intercom device');
 
     if (this.pyshell) {
-      this.pyshell.terminate(signal);
+      this.pyshell.terminate(killSignal);
     }
   }
 }
