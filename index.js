@@ -1,4 +1,4 @@
-let { PythonShell } = require('python-shell');
+const IntercomDevice = require('./intercom-device');
 
 let hap;
 let Service;
@@ -37,11 +37,13 @@ function IntercomPlatform(log, config, api) {
   this.serialNumber = 'SN000001';
   this.firmwareRevision = 'FW000001';
 
-  this.bellRang = false;
-  this.pyshell = null;
   this.accessories = new Map();
 
-  this.startPythonShell();
+  this.device = new IntercomDevice(this.log, {
+    bellTimeout: this.bellTimeout,
+    voltageLowLimit: this.voltageLowLimit,
+    pythonPath: this.pythonPath
+  });
 
   this.api.on('didFinishLaunching', () => {
     this.log('didFinishLaunching');
@@ -164,14 +166,13 @@ IntercomPlatform.prototype = {
       doorbellService = accessory.addService(Service.Doorbell, doorbellName, 'Doorbell');
     }
 
-    this.listenDoorbell(
-      function() {
-        doorbellService
-          .getCharacteristic(Characteristic.ProgrammableSwitchEvent)
-          .updateValue(Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
-      },
-      function() {}
-    );
+    this.device.removeAllListeners('doorbell');
+
+    this.device.on('doorbell', () => {
+      doorbellService
+        .getCharacteristic(Characteristic.ProgrammableSwitchEvent)
+        .updateValue(Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+    });
   },
 
   setDoorTargetState: function(lockService, state, callback) {
@@ -189,111 +190,32 @@ IntercomPlatform.prototype = {
   },
 
   unlockDoor: function(lockService) {
-    this.unlock();
+    this.device.unlock();
 
     lockService
       .getCharacteristic(Characteristic.LockCurrentState)
       .updateValue(Characteristic.LockCurrentState.UNSECURED);
 
-    setTimeout(function() {
+    setTimeout(() => {
       this.log("unlock timeout door");
 
-      this.lock();
+      this.device.lock();
 
       lockService
         .getCharacteristic(Characteristic.LockTargetState)
         .setValue(Characteristic.LockTargetState.SECURED);
-    }.bind(this), this.lockTimeout);
+    }, this.lockTimeout);
   },
 
   lockDoor: function(lockService) {
-    this.lock();
+    this.device.lock();
 
     lockService
       .getCharacteristic(Characteristic.LockCurrentState)
       .updateValue(Characteristic.LockCurrentState.SECURED);
   },
 
-  startPythonShell: function() {
-    const scriptPath = __dirname + "/";
-
-    this.log("Setting up python shell. scriptPath = " + scriptPath);
-
-    this.pyshell = new PythonShell('intercom-automation-hat.py', {
-      mode: 'text',
-      pythonPath: this.pythonPath,
-      pythonOptions: ['-u'],
-      args: [this.voltageLowLimit],
-      scriptPath: scriptPath
-    });
-
-    this.pyshell.on('stderr', function(stderr) {
-      this.log(stderr);
-    }.bind(this));
-
-    this.pyshell.on('close', function(code) {
-      this.log("pyshell close:");
-      this.log(" " + code);
-    }.bind(this));
-
-    this.pyshell.on('error', function(error) {
-      this.log("pyshell error:");
-      this.log(" " + error);
-    }.bind(this));
-  },
-
   shutdown: function(signal) {
-    this.log('Got %s, shutting down', signal);
-
-    if (this.pyshell) {
-      this.pyshell.terminate(signal);
-    }
-  },
-
-  lock: function() {
-    this.log('Send lock to pyshell');
-
-    if (this.pyshell) {
-      this.pyshell.send('lock');
-    }
-  },
-
-  unlock: function() {
-    this.log('Send unlock to pyshell');
-
-    if (this.pyshell) {
-      this.pyshell.send('unlock');
-    }
-  },
-
-  listenDoorbell: function(doorbellOnCallback, doorbellOffCallback) {
-    if (!this.pyshell) {
-      this.log('Cannot listen to doorbell: pyshell is not running');
-      return;
-    }
-
-    this.pyshell.removeAllListeners('message');
-
-    this.pyshell.on('message', function(message) {
-      this.log(message);
-
-      switch(message) {
-        case 'doorbell on':
-          if (!this.bellRang) {
-            doorbellOnCallback();
-          }
-          this.bellRang = true;
-          break;
-
-        case 'doorbell off':
-          if (this.bellRang) {
-            setTimeout(function() {
-              this.bellRang = false;
-              doorbellOffCallback();
-            }.bind(this), this.bellTimeout);
-          }
-          break;
-      }
-    }.bind(this));
+    this.device.shutdown(signal);
   }
 };
