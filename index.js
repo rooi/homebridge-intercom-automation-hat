@@ -323,7 +323,7 @@ IntercomPlatform.prototype = {
           firmwareRevision: this.firmwareRevision,
           clusters: {
             booleanState: {
-              stateValue: true
+              stateValue: false
             }
           },
           context: {
