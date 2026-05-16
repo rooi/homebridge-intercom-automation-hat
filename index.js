@@ -39,6 +39,19 @@ function IntercomPlatform(log, config, api) {
 
   this.accessories = new Map();
 
+  this.matterAvailable = !!this.api.matter;
+  this.enableMatter = this.config['enableMatter'] || false;
+
+  if (this.matterAvailable) {
+    this.log('Matter API is available');
+  } else {
+    this.log('Matter API is not available');
+  }
+
+  if (this.enableMatter && !this.matterAvailable) {
+    this.log.warn('Matter is enabled in config, but Homebridge Matter API is not available');
+  }
+
   this.device = new IntercomDevice(this.log, {
     bellTimeout: this.bellTimeout,
     voltageLowLimit: this.voltageLowLimit,
@@ -48,6 +61,10 @@ function IntercomPlatform(log, config, api) {
   this.api.on('didFinishLaunching', () => {
     this.log('didFinishLaunching');
     this.discoverDevices();
+
+    if (this.enableMatter) {
+      this.setupMatterDevices();
+    }
   });
 
   this.api.on('shutdown', () => {
@@ -173,6 +190,10 @@ IntercomPlatform.prototype = {
         .getCharacteristic(Characteristic.ProgrammableSwitchEvent)
         .updateValue(Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
     });
+  },
+
+  setupMatterDevices: function() {
+    this.log('Matter support is enabled, but no Matter devices are configured yet');
   },
 
   setDoorTargetState: function(lockService, state, callback) {
