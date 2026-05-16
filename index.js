@@ -216,7 +216,7 @@ IntercomPlatform.prototype = {
         this.api.matter.updateAccessoryState(
           this.matterBellSensorUuid,
           this.api.matter.clusterNames.BooleanState || 'booleanState',
-          { stateValue: true }
+          { stateValue: false }
         ).catch((error) => {
           this.log.error('Failed to update Matter bell sensor active state:', error);
         });
@@ -227,7 +227,7 @@ IntercomPlatform.prototype = {
           this.api.matter.updateAccessoryState(
             this.matterBellSensorUuid,
             this.api.matter.clusterNames.BooleanState || 'booleanState',
-            { stateValue: false }
+            { stateValue: true }
           ).catch((error) => {
             this.log.error('Failed to update Matter bell sensor inactive state:', error);
           });
@@ -267,7 +267,9 @@ IntercomPlatform.prototype = {
           firmwareRevision: this.firmwareRevision,
           clusters: {
             doorLock: {
-              lockState: 1
+              lockState: 1,
+              lockType: 0,
+              operatingMode: 0
             }
           },
           handlers: {
@@ -321,7 +323,7 @@ IntercomPlatform.prototype = {
           firmwareRevision: this.firmwareRevision,
           clusters: {
             booleanState: {
-              stateValue: false
+              stateValue: true
             }
           },
           context: {
