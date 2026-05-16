@@ -1,20 +1,20 @@
 let { PythonShell } = require('python-shell');
 
-let PlatformAccessory;
 let hap;
 let Service;
 let Characteristic;
 let UUIDGen;
+let PlatformAccessory;
 
 const PLUGIN_NAME = "homebridge-intercom-automation-hat";
 const PLATFORM_NAME = "IntercomAutomationHAT";
 
 module.exports = function(homebridge) {
-  PlatformAccessory = homebridge.platformAccessory;
   hap = homebridge.hap;
   Service = hap.Service;
   Characteristic = hap.Characteristic;
   UUIDGen = homebridge.hap.uuid;
+  PlatformAccessory = homebridge.platformAccessory;
 
   homebridge.registerPlatform(PLUGIN_NAME, PLATFORM_NAME, IntercomPlatform);
 };
@@ -36,22 +36,184 @@ function IntercomPlatform(log, config, api) {
   this.modelName = 'Zero W';
   this.serialNumber = 'SN000001';
   this.firmwareRevision = 'FW000001';
-  this.bellRang = false;
 
+  this.bellRang = false;
   this.pyshell = null;
+  this.accessories = new Map();
 
   this.startPythonShell();
 
-  process.on('SIGINT', () => {
-    this.shutdown('SIGINT');
+  this.api.on('didFinishLaunching', () => {
+    this.log('didFinishLaunching');
+    this.discoverDevices();
   });
 
-  process.on('SIGTERM', () => {
-    this.shutdown('SIGTERM');
+  this.api.on('shutdown', () => {
+    this.shutdown('shutdown');
   });
 }
 
 IntercomPlatform.prototype = {
+  configureAccessory: function(accessory) {
+    this.log('Loading accessory from cache:', accessory.displayName);
+    this.accessories.set(accessory.UUID, accessory);
+  },
+
+  discoverDevices: function() {
+    this.log("Discovering Intercom accessories...");
+
+    this.setupLockAccessory();
+    this.setupDoorbellAccessory();
+  },
+
+  setupLockAccessory: function() {
+    const lockName = this.name + "Lock";
+    const lockUuid = UUIDGen.generate(lockName + "LockAccessory");
+
+    let accessory = this.accessories.get(lockUuid);
+
+    if (accessory) {
+      this.log('Restoring existing lock accessory:', accessory.displayName);
+    } else {
+      this.log('Creating new lock accessory:', lockName);
+
+      accessory = new PlatformAccessory(
+        lockName,
+        lockUuid,
+        hap.Categories.LOCK
+      );
+
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+    }
+
+    this.configureLockInformationService(accessory);
+    this.configureLockService(accessory, lockName);
+  },
+
+  setupDoorbellAccessory: function() {
+    const doorbellName = this.name + "Bell";
+    const doorbellUuid = UUIDGen.generate(doorbellName + "BellAccessory");
+
+    let accessory = this.accessories.get(doorbellUuid);
+
+    if (accessory) {
+      this.log('Restoring existing doorbell accessory:', accessory.displayName);
+    } else {
+      this.log('Creating new doorbell accessory:', doorbellName);
+
+      accessory = new PlatformAccessory(
+        doorbellName,
+        doorbellUuid,
+        hap.Categories.VIDEO_DOORBELL
+      );
+
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+    }
+
+    this.configureDoorbellInformationService(accessory);
+    this.configureDoorbellService(accessory, doorbellName);
+  },
+
+  configureLockInformationService: function(accessory) {
+    accessory
+      .getService(Service.AccessoryInformation)
+      .setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
+      .setCharacteristic(Characteristic.Model, this.modelName)
+      .setCharacteristic(Characteristic.SerialNumber, this.serialNumber + '-LOCK')
+      .setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
+  },
+
+  configureDoorbellInformationService: function(accessory) {
+    accessory
+      .getService(Service.AccessoryInformation)
+      .setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
+      .setCharacteristic(Characteristic.Model, this.modelName)
+      .setCharacteristic(Characteristic.SerialNumber, this.serialNumber + '-BELL')
+      .setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
+  },
+
+  configureLockService: function(accessory, lockName) {
+    let lockService = accessory.getService(Service.LockMechanism);
+
+    if (!lockService) {
+      lockService = accessory.addService(Service.LockMechanism, lockName, 'Door lock');
+    }
+
+    lockService
+      .setCharacteristic(
+        Characteristic.LockTargetState,
+        Characteristic.LockTargetState.SECURED
+      )
+      .setCharacteristic(
+        Characteristic.LockCurrentState,
+        Characteristic.LockCurrentState.SECURED
+      );
+
+    lockService
+      .getCharacteristic(Characteristic.LockTargetState)
+      .removeAllListeners('set')
+      .on('set', (state, callback) => {
+        this.setDoorTargetState(lockService, state, callback);
+      });
+  },
+
+  configureDoorbellService: function(accessory, doorbellName) {
+    let doorbellService = accessory.getService(Service.Doorbell);
+
+    if (!doorbellService) {
+      doorbellService = accessory.addService(Service.Doorbell, doorbellName, 'Doorbell');
+    }
+
+    this.listenDoorbell(
+      function() {
+        doorbellService
+          .getCharacteristic(Characteristic.ProgrammableSwitchEvent)
+          .updateValue(Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+      },
+      function() {}
+    );
+  },
+
+  setDoorTargetState: function(lockService, state, callback) {
+    switch(state) {
+      case Characteristic.LockTargetState.UNSECURED:
+        this.unlockDoor(lockService);
+        break;
+
+      case Characteristic.LockTargetState.SECURED:
+        this.lockDoor(lockService);
+        break;
+    }
+
+    callback();
+  },
+
+  unlockDoor: function(lockService) {
+    this.unlock();
+
+    lockService
+      .getCharacteristic(Characteristic.LockCurrentState)
+      .updateValue(Characteristic.LockCurrentState.UNSECURED);
+
+    setTimeout(function() {
+      this.log("unlock timeout door");
+
+      this.lock();
+
+      lockService
+        .getCharacteristic(Characteristic.LockTargetState)
+        .setValue(Characteristic.LockTargetState.SECURED);
+    }.bind(this), this.lockTimeout);
+  },
+
+  lockDoor: function(lockService) {
+    this.lock();
+
+    lockService
+      .getCharacteristic(Characteristic.LockCurrentState)
+      .updateValue(Characteristic.LockCurrentState.SECURED);
+  },
+
   startPythonShell: function() {
     const scriptPath = __dirname + "/";
 
@@ -110,6 +272,8 @@ IntercomPlatform.prototype = {
       return;
     }
 
+    this.pyshell.removeAllListeners('message');
+
     this.pyshell.on('message', function(message) {
       this.log(message);
 
@@ -131,205 +295,5 @@ IntercomPlatform.prototype = {
           break;
       }
     }.bind(this));
-  },
-
-  accessories: function(callback) {
-    this.log("Creating IntercomPlatform accessories...");
-
-    this.accessories = [];
-
-    const lockAccessory = new IntercomLockAccessory(this.log, this.config);
-    lockAccessory.prepareLockAccessory();
-    lockAccessory.prepareLockService();
-    lockAccessory.connectLockUnlock(
-      this.lock.bind(this),
-      this.unlock.bind(this)
-    );
-
-    const doorbellAccessory = new IntercomDoorbellAccessory(this.log, this.config);
-    doorbellAccessory.prepareDoorbellAccessory();
-    const doorbellService = doorbellAccessory.prepareDoorbellService();
-
-    doorbellAccessory.connectListeningToDoorbell(
-      this.listenDoorbell.bind(this),
-      doorbellService
-    );
-
-    this.accessories.push(lockAccessory);
-    this.accessories.push(doorbellAccessory);
-
-    callback(this.accessories);
   }
 };
-
-class IntercomLockAccessory {
-  constructor(log, config) {
-    this.log = log;
-    this.config = config || {};
-    this.lockTimeout = this.config['lockTimeout'] || 1000;
-
-    this.name = this.config['name'] || 'Intercom';
-    this.name += "Lock";
-
-    this.log("IntercomLockAccessory constructor");
-  }
-
-  prepareLockAccessory() {
-    this.log('prepareLockAccessory');
-
-    const uuid = UUIDGen.generate(this.name + "LockAccessory");
-
-    this.intercomLockAccessory = new PlatformAccessory(
-      this.name,
-      uuid,
-      hap.Categories.LOCK
-    );
-
-    this.intercomLockAccessory.on('identify', function(callback) {
-      this.identify(callback);
-    }.bind(this));
-  }
-
-  prepareLockService() {
-    this.log('prepareLockService');
-
-    this.lockService = new Service.LockMechanism(this.name, 'Door lock');
-
-    this.lockService
-      .setCharacteristic(
-        Characteristic.LockTargetState,
-        Characteristic.LockTargetState.SECURED
-      )
-      .setCharacteristic(
-        Characteristic.LockCurrentState,
-        Characteristic.LockCurrentState.SECURED
-      )
-      .getCharacteristic(Characteristic.LockTargetState)
-      .on('set', this.setDoorTargetState.bind(this));
-
-    this.intercomLockAccessory.addService(this.lockService);
-
-    return this.lockService;
-  }
-
-  connectLockUnlock(lock, unlock) {
-    this.lock = lock;
-    this.unlock = unlock;
-  }
-
-  setDoorTargetState(state, callback) {
-    switch(state) {
-      case Characteristic.LockTargetState.UNSECURED:
-        this.unlockDoor();
-        break;
-
-      case Characteristic.LockTargetState.SECURED:
-        this.lockDoor();
-        break;
-    }
-
-    callback();
-  }
-
-  unlockDoor() {
-    this.unlock();
-
-    this.lockService
-      .getCharacteristic(Characteristic.LockCurrentState)
-      .updateValue(Characteristic.LockCurrentState.UNSECURED);
-
-    setTimeout(function() {
-      this.log("unlock timeout door");
-
-      this.lock();
-
-      this.lockService
-        .getCharacteristic(Characteristic.LockTargetState)
-        .setValue(Characteristic.LockTargetState.SECURED);
-    }.bind(this), this.lockTimeout);
-  }
-
-  lockDoor() {
-    this.lock();
-
-    this.lockService
-      .getCharacteristic(Characteristic.LockCurrentState)
-      .updateValue(Characteristic.LockCurrentState.SECURED);
-  }
-
-  identify(callback) {
-    this.log('identify intercom lock');
-    callback();
-  }
-
-  getServices() {
-    return [this.lockService];
-  }
-}
-
-class IntercomDoorbellAccessory {
-  constructor(log, config) {
-    this.log = log;
-    this.config = config || {};
-
-    this.name = this.config['name'] || 'Intercom';
-    this.name += "Bell";
-
-    this.log("IntercomBellAccessory constructor");
-  }
-
-  prepareDoorbellAccessory() {
-    this.log('prepareBellAccessory');
-
-    const uuid = UUIDGen.generate(this.name + "BellAccessory");
-
-    this.intercomDoorbellAccessory = new PlatformAccessory(
-      this.name,
-      uuid,
-      hap.Categories.VIDEO_DOORBELL
-    );
-
-    this.intercomDoorbellAccessory.on('identify', function(callback) {
-      this.identify(callback);
-    }.bind(this));
-  }
-
-  prepareDoorbellService() {
-    this.log('prepareDoorbellService');
-
-    this.doorbellService = new Service.Doorbell(this.name, 'Doorbell');
-
-    this.intercomDoorbellAccessory.addService(this.doorbellService);
-
-    return this.doorbellService;
-  }
-
-  connectListeningToDoorbell(listenDoorbell, doorbellService) {
-    this.log("connectListeningToDoorbell");
-
-    this.listenDoorbell = listenDoorbell;
-
-    this.listenDoorbell(
-      function() {
-        doorbellService
-          .getCharacteristic(Characteristic.ProgrammableSwitchEvent)
-          .updateValue(Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
-      },
-      function() {}
-    );
-  }
-
-  identify(callback) {
-    this.log('identify intercom doorbell');
-
-    this.doorbellService
-      .getCharacteristic(Characteristic.ProgrammableSwitchEvent)
-      .setValue(0);
-
-    callback();
-  }
-
-  getServices() {
-    return [this.doorbellService];
-  }
-}
