@@ -39,7 +39,8 @@ function IntercomPlatform(log, config, api) {
 
   this.accessories = new Map();
 
-  this.matterAvailable = !!this.api.matter;
+  this.matterAvailable = this.api.isMatterAvailable ? this.api.isMatterAvailable() : !!this.api.matter;
+  this.matterEnabled = this.api.isMatterEnabled ? this.api.isMatterEnabled() : !!this.api.matter;
   this.enableMatter = this.config['enableMatter'] || false;
 
   if (this.matterAvailable) {
@@ -48,8 +49,14 @@ function IntercomPlatform(log, config, api) {
     this.log('Matter API is not available');
   }
 
-  if (this.enableMatter && !this.matterAvailable) {
-    this.log.warn('Matter is enabled in config, but Homebridge Matter API is not available');
+  if (this.matterEnabled) {
+    this.log('Matter is enabled for this bridge');
+  } else {
+    this.log('Matter is not enabled for this bridge');
+  }
+
+  if (this.enableMatter && !this.api.matter) {
+    this.log.warn('Matter is enabled in plugin config, but api.matter is not available');
   }
 
   this.device = new IntercomDevice(this.log, {
@@ -63,7 +70,9 @@ function IntercomPlatform(log, config, api) {
     this.discoverDevices();
 
     if (this.enableMatter) {
-      this.setupMatterDevices();
+      this.setupMatterDevices().catch((error) => {
+        this.log.error('Failed to setup Matter devices:', error);
+      });
     }
   });
 
@@ -192,8 +201,74 @@ IntercomPlatform.prototype = {
     });
   },
 
-  setupMatterDevices: function() {
-    this.log('Matter support is enabled, but no Matter devices are configured yet');
+  setupMatterDevices: async function() {
+    if (!this.api.matter) {
+      this.log.warn('Matter support is enabled in plugin config, but api.matter is not available');
+      return;
+    }
+
+    const matterLockName = this.name + " Matter Lock";
+    const matterLockUuid = UUIDGen.generate(this.name + "MatterLock");
+
+    this.log('Registering Matter lock:', matterLockName);
+
+    await this.api.matter.registerPlatformAccessories(
+      PLUGIN_NAME,
+      PLATFORM_NAME,
+      [{
+        UUID: matterLockUuid,
+        displayName: matterLockName,
+        deviceType: this.api.matter.deviceTypes.DoorLock,
+        manufacturer: this.manufacturer,
+        model: this.modelName,
+        serialNumber: this.serialNumber + '-MATTER-LOCK',
+        firmwareRevision: this.firmwareRevision,
+        clusters: {
+          doorLock: {
+            lockState: 1
+          }
+        },
+        handlers: {
+          doorLock: {
+            lockDoor: async () => {
+              this.log('Matter lockDoor command received');
+              this.device.lock();
+
+              return {
+                lockState: 1
+              };
+            },
+
+            unlockDoor: async () => {
+              this.log('Matter unlockDoor command received');
+              this.device.unlock();
+
+              setTimeout(() => {
+                this.log('Matter unlock timeout door');
+                this.device.lock();
+
+                this.api.matter.updateAccessoryState(
+                  matterLockUuid,
+                  this.api.matter.clusterNames.DoorLock,
+                  { lockState: 1 }
+                ).catch((error) => {
+                  this.log.error('Failed to update Matter lock state after timeout:', error);
+                });
+              }, this.lockTimeout);
+
+              return {
+                lockState: 2
+              };
+            }
+          }
+        },
+        context: {
+          type: 'lock'
+        }
+      }]
+    );
+
+    this.log('Matter lock registered');
   },
 
   setDoorTargetState: function(lockService, state, callback) {
