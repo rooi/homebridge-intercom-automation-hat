@@ -33,6 +33,12 @@
         "type": "string",
         "default": "/home/pi/venvs/automationhat/bin/python",
         "description": "Path to the Python executable or virtual environment Python binary."
+      },
+      "enableMatter": {
+        "title": "Enable Matter",
+        "type": "boolean",
+        "default": false,
+        "description": "Enable experimental Matter support. HomeKit accessories remain available."
       }
     }
   }
